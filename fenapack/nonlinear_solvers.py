@@ -81,6 +81,74 @@ class PCDNewtonSolver(NewtonSolver):
     def linear_solver(self):
         return self._solver
 
+class PCDNonLinearKrylovSolver:
+    """Newton solver suitable for use with
+    :py:class:`fenapack.field_split.PCDNonLinearKrylovSolver`.
+    """
+
+    def __init__(self, solver, pcd_pc_class=None):
+        """Initialize for a given PCD Krylov solver and preconditioner class.
+
+        *Arguments*
+            solver (:py:class:`fenapack.field_split.PCDNonLinearKrylovSolver`)
+               A PCD Krylov solver.
+            pcd_pc_class (:py:class:`fenapack.preconditioners.BasePCDPC`)
+               Representative of a class implementing PCD preconditioner.
+        """
+
+        # Initialize DOLFIN Newton solver
+        comm = solver.ksp().comm.tompi4py()
+        factory = PETScFactory.instance()
+        super(PCDNonLinearKrylovSolver, self).__init__(comm, solver, factory)
+
+        # Store Python reference for solver setup
+        self._solver = solver
+        self._pcd_pc_class = pcd_pc_class
+
+
+    def solve(self, problem, x):
+        # Store Python reference for solver setup
+        # self._problem = problem
+
+        # Solve the problem, drop the reference, and return
+        # r = super(PCDNonLinearKrylovSolver, self).solve(problem, x)
+        # del self._problem
+
+        # problem.F <--- valuta la f
+        # problem.J <--- valuta la Jacobiana
+        # problem.J_pc <--- valuta la matrice "regolarizzata" del precondizionatore
+
+        # Implementare Krylov-Nonlineare
+
+             # Utilizzare Arnoldi basato su PETSc
+             # In Arnoldi basato su PETSc applichiamo il precondizionatore
+
+        # Restituire la soluzione in r
+
+        return r
+
+
+    def solver_setup(self, A, P, nonlinear_problem, iteration):
+        # Only do the setup once
+        # FIXME: Is this good?
+        if iteration > 0 or getattr(self, "_initialized", False):
+            return
+        self._initialized = True
+
+        # C++ references passed in do not have Python context
+        linear_solver = self._solver
+        nonlinear_problem = self._problem
+
+        # Set operators and initialize PCD
+        P = A if P.empty() else P
+        linear_solver.set_operators(A, P)
+        linear_solver.init_pcd(
+            nonlinear_problem.pcd_assembler, self._pcd_pc_class)
+
+
+    def linear_solver(self):
+        return self._solver
+
 
 class PCDNonlinearProblem(NonlinearProblem):
     """Class for interfacing with :py:class:`PCDNewtonSolver`."""
